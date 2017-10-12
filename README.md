@@ -5,7 +5,7 @@ For questions and collaboration write to [schw4b@gmail.com](schw4b@gmail.com).
 ## How to cite this work
 
 ## Notebooks with results and figures
-- [DGM-RSN](https://rawgit.com/schw4b/DGM-RSN/master/results/DGM-RSN.nb.html)
+- [DGM-RSN](https://rawgit.com/schw4b/DGM-RSN/master/results/DGM-RSN16.nb.html)
 
 ## Reproducing full analysis
 
