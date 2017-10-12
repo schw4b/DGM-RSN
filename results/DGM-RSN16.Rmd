@@ -312,7 +312,7 @@ pc.r4$a = apply(pc.r4$a, c(1,2), sum)/N
 
 ## Partial correlation plots
 ```{r, fig.height=6, fig.width=8, message=FALSE}
-LIM=c(-0.5,0.5)
+LIM=c(-0.65,0.65)
 
 p1 = gplotMat(pc.r1$r, title=sprintf("Run 1", N), lim=LIM, nodeLabels = labels$Label,
               axisTextSize = 8, xAngle = 90, colMapLabel=expression("Pearson\'s"~italic(r)),
@@ -347,7 +347,7 @@ stats.r4 = binom.nettest(dgm.net16.r4$am, alter = "greater")
 
 ## Figure DGM
 ```{r, fig.width=8, fig.height=14, message=FALSE}
-mylim = c(0, 0.68)
+mylim = c(0, 1)
 pos = 0.5:15.5
 s = 0.2
 p1 = gplotMat(stats.r1$adj, title = "Run 1", nodeLabels=labels$Label,
@@ -477,20 +477,22 @@ stats.mn = binom.nettest(mn, alter = "greater")
 
 ## Figure DGM within-subject consistency
 ```{r fig.height=10, fig.width=8, message=FALSE}
+mylim = c(0, 1)
+
 p1 = gplotMat(stats.m3$adj, title = "edge in 3/4 runs", nodeLabels=labels$Label,
-              axisTextSize=9, xAngle=90, lim = c(0, 0.6)) +
+              axisTextSize=9, xAngle=90, lim = mylim) +
   scale_x_continuous(breaks = pos, labels = labels$Label)
 
 p2 = gplotMat(rmna(stats.m3$adj_fdr), title = "binomial test",
-              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = c(0, 0.6)) +
+              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = mylim) +
   scale_x_continuous(breaks = pos, labels = labels$Label)
 
 p3 = gplotMat(stats.m4$adj, title = "edge in 4/4 runs", nodeLabels=labels$Label,
-              axisTextSize=9, xAngle=90, lim = c(0, 0.32)) +
+              axisTextSize=9, xAngle=90, lim = mylim) +
   scale_x_continuous(breaks = pos, labels = labels$Label)
 
 p4 = gplotMat(rmna(stats.m4$adj_fdr), title = "binomial test",
-              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = c(0,0.32)) +
+              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = mylim) +
   scale_x_continuous(breaks = pos, labels = labels$Label)
 
 p5 = gplotMat(rmdiag(stats.mn$adj), title = "no edge in 4/4 runs", nodeLabels=labels$Label,
