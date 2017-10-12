@@ -1,0 +1,521 @@
+---
+title: "DGM-RSN16"
+author: "Simon Schwab"
+date: "12 Oct 2017"
+output:
+  html_notebook: default
+---
+
+## Install required packages 
+```{r}
+# install.packages("multdyn")
+# install.packages("testit")
+# install.packages("ggplot2")
+# install.packages("cowplot")
+# install.packages("reshape2")
+# install.packages("data.table")
+# install.packages("ppcor")
+```
+
+## Load libraries
+```{r, message=FALSE}
+library(multdyn)
+library(ggplot2)
+library(cowplot)
+library(reshape2)
+library(data.table)
+library(testit)
+library(ppcor)
+```
+
+## Main variables 
+```{r}
+PATH_HOME = "/home/simon"
+PATH_NET  = file.path(PATH_HOME, 'Drive', 'DGM_NetMats16_results')
+PATH_TS   = file.path(PATH_HOME, 'Drive', 'HCP900_Parcellation_Timeseries_Netmats_ICAd25')
+PATH      = file.path(PATH_HOME, 'Dropbox', 'Data', 'DGM-RSN')
+PATH_DATA = file.path(PATH, 'data')
+PATH_DEMOG = file.path(PATH_HOME, 'Drive', 'HCP')
+PATH_FIG  = file.path(PATH, 'figures')
+
+N      = 150
+N_comp = 16 # RSNs
+N_t    = 1200 # Volumes
+N_runs = 4
+INFO   = 'NetMats16'
+SUBJECTS = as.matrix(read.table(file.path(PATH_TS, 'subjectIDs.txt')))
+TR=0.72
+labels = read.table(file.path(PATH, 'results', 'RSN16Labels.txt'), header = T)
+labels = labels[order(labels$NoNetMats25),]
+COMP=labels$NoNetMats25
+
+print(labels)
+```
+
+## Demographics
+We use the HCP 900 release
+
+```{r}
+subj = as.matrix(read.table(file.path(PATH_TS, 'subjectIDs.txt')))
+subj=subj[1:N]
+           
+demog=read.table(file.path(PATH_DEMOG, 'unrestricted_schwab_9_19_2017_8_41_11.csv'), 
+                 sep = ",", header = TRUE)
+idx = is.element(demog$Subject, subj)
+assert(sum(idx) == N)
+
+demog = subset(demog, idx)
+assert(nrow(demog) == N)
+```
+
+```{r}
+summary(demog$Gender)/N
+summary(demog$Age)/N
+```
+
+## Loading network data
+```{r}
+# subj_r1 = vector(mode = "list", length = N)
+# subj_r2 = vector(mode = "list", length = N)
+# subj_r3 = vector(mode = "list", length = N)
+# subj_r4 = vector(mode = "list", length = N)
+# 
+# for (s in 1:N) {
+#   print(sprintf("Loading subject %03d", s))
+# 
+#   subj_r1[[s]] = read.subject(PATH_NET, sprintf("%s_Run_%03d", SUBJECTS[s], 1), N_comp)
+#   subj_r2[[s]] = read.subject(PATH_NET, sprintf("%s_Run_%03d", SUBJECTS[s], 2), N_comp)
+#   subj_r3[[s]] = read.subject(PATH_NET, sprintf("%s_Run_%03d", SUBJECTS[s], 3), N_comp)
+#   subj_r4[[s]] = read.subject(PATH_NET, sprintf("%s_Run_%03d", SUBJECTS[s], 4), N_comp)
+# 
+#   subj_r1[[s]]$models = NULL
+#   subj_r2[[s]]$models = NULL
+#   subj_r3[[s]]$models = NULL
+#   subj_r4[[s]]$models = NULL
+# 
+#   gc() # garbage collector
+# }
+# 
+# dgm.net16.r1 = dgm.group(subj_r1, saveModels = F)
+# dgm.net16.r2 = dgm.group(subj_r2, saveModels = F)
+# dgm.net16.r3 = dgm.group(subj_r3, saveModels = F)
+# dgm.net16.r4 = dgm.group(subj_r4, saveModels = F)
+# 
+# f=file(file.path(PATH,"results", "DGM-RSN16.RData"))
+# save(dgm.net16.r1, dgm.net16.r2, dgm.net16.r3, dgm.net16.r4, file = f, compress = T)
+# close(f)
+
+
+load(file.path(PATH, 'results', 'DGM-RSN16.RData'))
+```
+
+## Plot: discount factor delta distribution per node
+```{r, fig.height=4, fig.width=5}
+
+d.r1=melt(dgm.net16.r1$df_)
+d.r2=melt(dgm.net16.r2$df_)
+d.r3=melt(dgm.net16.r3$df_)
+d.r4=melt(dgm.net16.r4$df_)
+
+
+p1 = ggplot(d.r1, aes(x=as.factor(Var2), y=value)) +
+  geom_point(shape=1, color="gray50", size=2, position = position_jitter(width = NULL, height = 0.01)) +
+  geom_boxplot(width=0.6) +
+  ggtitle(sprintf("Run 1", N)) + ylab("df") + xlab("node")
+
+p2 = ggplot(d.r2, aes(x=as.factor(Var2), y=value)) +
+  geom_point(shape=1, color="gray50", size=2, position = position_jitter(width = NULL, height = 0.01)) +
+  geom_boxplot(width=0.6) +
+  ggtitle(sprintf("Run 2", N)) + ylab("df") + xlab("node")
+
+p3 = ggplot(d.r3, aes(x=as.factor(Var2), y=value)) +
+  geom_point(shape=1, color="gray50", size=2, position = position_jitter(width = NULL, height = 0.01)) +
+  geom_boxplot(width=0.6) +
+  ggtitle(sprintf("Run 3", N)) + ylab("df") + xlab("node")
+
+p4 = ggplot(d.r4, aes(x=as.factor(Var2), y=value)) +
+  geom_point(shape=1, color="gray50", size=2, position = position_jitter(width = NULL, height = 0.01)) +
+  geom_boxplot(width=0.6) +
+  ggtitle(sprintf("Run 4", N)) + ylab("df") + xlab("node")
+
+plot_grid(p1, p2, p3, p4, ncol = 2, nrow = 2)
+```
+
+## DFs of parents only
+```{r, fig.height=2, fig.width=4}
+df.16r1 = dgm.net16.r1$df_
+df.16r2 = dgm.net16.r2$df_
+df.16r3 = dgm.net16.r3$df_
+df.16r4 = dgm.net16.r4$df_
+
+df.16r1[t(apply(dgm.net16.r1$am, 3, colSums)) == 0] = NA
+df.16r2[t(apply(dgm.net16.r2$am, 3, colSums)) == 0] = NA
+df.16r3[t(apply(dgm.net16.r3$am, 3, colSums)) == 0] = NA
+df.16r4[t(apply(dgm.net16.r4$am, 3, colSums)) == 0] = NA
+
+summary(colMeans(df.16r1, na.rm = T))
+summary(colMeans(df.16r2, na.rm = T))
+summary(colMeans(df.16r3, na.rm = T))
+summary(colMeans(df.16r4, na.rm = T))
+```
+
+## Load time series data
+```{r}
+# f = list.files(file.path(PATH_TS, "node_timeseries", "3T_HCP820_MSMAll_d25_ts2"), "*.txt")
+# # read data
+# ts = array(NA, dim=c(N_t, N_comp, N_runs, N))
+# for (s in 1:N) {
+#   print(sprintf("Loading subject %03d", s))
+#   d = scaleTs(as.matrix(read.table(file.path(PATH_TS, "node_timeseries", "3T_HCP820_MSMAll_d25_ts2", f[s]))))
+#   assert(nrow(d) == N_t*N_runs)
+#   ts[,,1,s] = d[1:1200,COMP]
+#   ts[,,2,s] = d[1201:2400,COMP]
+#   ts[,,3,s] = d[2401:3600,COMP]
+#   ts[,,4,s] = d[3601:4800,COMP]
+# }
+# 
+# f=file(file.path(PATH, "results", "RSN16-ts.RData"))
+# save(ts, file = f)
+# close(f)
+
+load(file.path(PATH, 'results', 'RSN16-ts.RData'))
+```
+
+## Plot example timeseries
+```{r, fig.height=8, fig.width=10}
+idx = 1:round(120/TR) # first 2 minutes
+
+# random sampling of subject s and nodes n
+nodes = 5 # no. of nodes to plot
+
+d = ts[idx,sample(N_comp,nodes),,sample(N,1)]
+
+p1 = ggplot(melt(d[,1,]), aes(x = Var1, y = value, group=Var2, color=as.factor(Var2))) + 
+  geom_line() + theme_minimal() + ggtitle("Run 1")
+
+p2 = ggplot(melt(d[,2,]), aes(x = Var1, y = value, group=Var2, color=as.factor(Var2))) +
+  geom_line() + theme_minimal() + ggtitle("Run 2")
+
+p3 = ggplot(melt(d[,3,]), aes(x = Var1, y = value, group=Var2, color=as.factor(Var2))) +
+  geom_line() + theme_minimal() + ggtitle("Run 3")
+
+p4 = ggplot(melt(d[,4,]), aes(x = Var1, y = value, group=Var2, color=as.factor(Var2))) + 
+  geom_line() + theme_minimal() + ggtitle("Run 4")
+
+plot_grid(p1, p2, p3, p4, ncol = 1, nrow = 4, rel_widths = c(1, 1))
+```
+
+
+## Node variance
+We calculate the SD across time for the subject's node.
+```{r}
+# ts 1200 x 10 x 4 x 500
+r1=apply(ts[,,1,], c(3,2), sd)
+r2=apply(ts[,,2,], c(3,2), sd)
+r3=apply(ts[,,3,], c(3,2), sd)
+r4=apply(ts[,,4,], c(3,2), sd)
+```
+
+```{r, fig.height=4, fig.width=7}
+p1 = ggplot(melt(r1), aes(x=as.factor(Var2), y=value)) +
+  geom_point(shape=1, color="gray50", size=2) +
+  geom_boxplot(width=0.3) +
+  ggtitle(sprintf("Run 1", N)) + ylab("SD") + xlab("RSNs")
+
+p2 = ggplot(melt(r2), aes(x=as.factor(Var2), y=value)) +
+  geom_point(shape=1, color="gray50", size=2) +
+  geom_boxplot(width=0.3) +
+  ggtitle(sprintf("Run 2", N)) + ylab("SD") + xlab("RSNs")
+
+p3 = ggplot(melt(r3), aes(x=as.factor(Var2), y=value)) +
+  geom_point(shape=1, color="gray50", size=2) +
+  geom_boxplot(width=0.3) +
+  ggtitle(sprintf("Run 3", N)) + ylab("SD") + xlab("RSNs")
+
+p4 = ggplot(melt(r4), aes(x=as.factor(Var2), y=value)) +
+  geom_point(shape=1, color="gray50", size=2) +
+  geom_boxplot(width=0.3) +
+  ggtitle(sprintf("Run 4", N)) + ylab("SD") + xlab("RSNs")
+
+plot_grid(p1, p2, p3, p4, ncol = 2, nrow = 2)
+ggsave(path = PATH_FIG, "Sd_16RSNs.png")
+```
+
+## Correlation Plots
+```{r, fig.height=6, fig.width=8, message=FALSE}
+LIM=c(-0.65,0.65)
+
+p1 = gplotMat(rmdiag(corTs(ts[,,1,])), title=sprintf("Run 1", N), lim=LIM, nodeLabels = labels$Label,
+              axisTextSize = 8, xAngle = 90, colMapLabel=expression("Pearson\'s"~italic(r)),
+              gradient = c("blue", "white", "red")) +
+  xlab("Node") + ylab("Node") + scale_x_continuous(breaks = 0.5:15.5, labels = labels$Label )
+
+p2 = gplotMat(rmdiag(corTs(ts[,,2,])), title=sprintf("Run 2", N), lim=LIM, nodeLabels = labels$Label,
+              axisTextSize = 8, xAngle = 90, colMapLabel=expression("Pearson\'s"~italic(r)),
+              gradient = c("blue", "white", "red")) +
+  xlab("Node") + ylab("Node") + scale_x_continuous(breaks = 0.5:15.5, labels = labels$Label )
+
+p3 = gplotMat(rmdiag(corTs(ts[,,3,])), title=sprintf("Run 3", N), lim=LIM, nodeLabels = labels$Label,
+              axisTextSize = 8, xAngle = 90, colMapLabel=expression("Pearson\'s"~italic(r)),
+              gradient = c("blue", "white", "red")) +
+  xlab("Node") + ylab("Node") + scale_x_continuous(breaks = 0.5:15.5, labels = labels$Label )
+
+p4 = gplotMat(rmdiag(corTs(ts[,,4,])), title=sprintf("Run 4", N), lim=LIM, nodeLabels = labels$Label,
+              axisTextSize = 8, xAngle = 90, colMapLabel=expression("Pearson\'s"~italic(r)),
+              gradient = c("blue", "white", "red")) +
+  xlab("Node") + ylab("Node") + scale_x_continuous(breaks = 0.5:15.5, labels = labels$Label )
+
+plot_grid(p1, p2, p3, p4, ncol = 2, nrow = 2, rel_widths = c(1, 1))
+```
+
+## Partial correlations
+```{r}
+pc.r1 = pc.r2 = pc.r3 = pc.r4 = list()
+pc.r1$r =  pc.r1$p = array(NA, dim=c(N_comp, N_comp, N))
+pc.r2$r =  pc.r2$p = array(NA, dim=c(N_comp, N_comp, N))
+pc.r3$r =  pc.r3$p = array(NA, dim=c(N_comp, N_comp, N))
+pc.r4$r =  pc.r4$p = array(NA, dim=c(N_comp, N_comp, N))
+
+pc.r1$a = pc.r2$a = pc.r3$a = pc.r4$a = array(0, dim=c(N_comp, N_comp, N))
+
+up = upper.tri(array(NA, dim=c(N_comp,N_comp)))
+alpha = 0.05
+
+for (i in 1:N) {
+  pc.r1$r[,,i] = pcor(ts[,,1,i])$estimate
+  pc.r1$p[,,i][up] = p.adjust(pcor(ts[,,1,i])$p.value[up], method = "fdr")
+  pc.r1$a[,,i][pc.r1$p[,,i] < 0.05] = 1
+  
+  pc.r2$r[,,i] = pcor(ts[,,2,i])$estimate
+  pc.r2$p[,,i][up] = p.adjust(pcor(ts[,,2,i])$p.value[up], method = "fdr")
+  pc.r2$a[,,i][pc.r2$p[,,i] < 0.05] = 1
+  
+  pc.r3$r[,,i] = pcor(ts[,,3,i])$estimate
+  pc.r3$p[,,i][up] = p.adjust(pcor(ts[,,3,i])$p.value[up], method = "fdr")
+  pc.r3$a[,,i][pc.r3$p[,,i] < 0.05] = 1
+  
+  pc.r4$r[,,i] = pcor(ts[,,4,i])$estimate
+  pc.r4$p[,,i][up] = p.adjust(pcor(ts[,,4,i])$p.value[up], method = "fdr")
+  pc.r4$a[,,i][pc.r4$p[,,i] < 0.05] = 1
+}
+  
+pc.r1$r = apply(pc.r1$r, c(1,2), mean)
+pc.r2$r = apply(pc.r2$r, c(1,2), mean)
+pc.r3$r = apply(pc.r3$r, c(1,2), mean)
+pc.r4$r = apply(pc.r4$r, c(1,2), mean)
+
+pc.r1$a = apply(pc.r1$a, c(1,2), sum)/N
+pc.r2$a = apply(pc.r2$a, c(1,2), sum)/N
+pc.r3$a = apply(pc.r3$a, c(1,2), sum)/N
+pc.r4$a = apply(pc.r4$a, c(1,2), sum)/N
+```
+
+## Partial correlation plots
+```{r, fig.height=6, fig.width=8, message=FALSE}
+LIM=c(-0.5,0.5)
+
+p1 = gplotMat(pc.r1$r, title=sprintf("Run 1", N), lim=LIM, nodeLabels = labels$Label,
+              axisTextSize = 8, xAngle = 90, colMapLabel=expression("Pearson\'s"~italic(r)),
+              gradient = c("blue", "white", "red")) +
+  xlab("Node") + ylab("Node") + scale_x_continuous(breaks = 0.5:15.5, labels = labels$Label )
+
+p2 = gplotMat(pc.r2$r, title=sprintf("Run 2", N), lim=LIM, nodeLabels = labels$Label,
+              axisTextSize = 8, xAngle = 90, colMapLabel=expression("Pearson\'s"~italic(r)),
+              gradient = c("blue", "white", "red")) +
+  xlab("Node") + ylab("Node") + scale_x_continuous(breaks = 0.5:15.5, labels = labels$Label )
+
+p3 = gplotMat(pc.r3$r, title=sprintf("Run 3", N), lim=LIM, nodeLabels = labels$Label,
+              axisTextSize = 8, xAngle = 90, colMapLabel=expression("Pearson\'s"~italic(r)),
+              gradient = c("blue", "white", "red")) +
+  xlab("Node") + ylab("Node") + scale_x_continuous(breaks = 0.5:15.5, labels = labels$Label )
+
+p4 = gplotMat(pc.r4$r, title=sprintf("Run 4", N), lim=LIM, nodeLabels = labels$Label,
+              axisTextSize = 8, xAngle = 90, colMapLabel=expression("Pearson\'s"~italic(r)),
+              gradient = c("blue", "white", "red")) +
+  xlab("Node") + ylab("Node") + scale_x_continuous(breaks = 0.5:15.5, labels = labels$Label )
+
+plot_grid(p1, p2, p3, p4, ncol = 2, nrow = 2, rel_widths = c(1, 1))
+```
+
+## Network consistency across subjects
+```{r}
+stats.r1 = binom.nettest(dgm.net16.r1$am, alter = "greater")
+stats.r2 = binom.nettest(dgm.net16.r2$am, alter = "greater")
+stats.r3 = binom.nettest(dgm.net16.r3$am, alter = "greater")
+stats.r4 = binom.nettest(dgm.net16.r4$am, alter = "greater")
+```
+
+## Figure DGM
+```{r, fig.width=8, fig.height=14, message=FALSE}
+mylim = c(0, 0.68)
+pos = 0.5:15.5
+s = 0.2
+p1 = gplotMat(stats.r1$adj, title = "Run 1", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = mylim) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p2 = gplotMat(rmna(stats.r1$adj_fdr), title = "binomial test",
+              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = mylim) +
+  scale_x_continuous(breaks = pos, labels = labels$Label ) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p3 = gplotMat(stats.r2$adj, title = "Run 2", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = mylim) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p4 = gplotMat(rmna(stats.r2$adj_fdr), title = "binomial test",
+              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = mylim) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p5 = gplotMat(stats.r3$adj, title = "Run 3", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = mylim) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p6 = gplotMat(rmna(stats.r3$adj_fdr), title = "binomial test",
+              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = mylim) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p7 = gplotMat(stats.r4$adj, title = "Run 4", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = mylim) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p8 = gplotMat(rmna(stats.r4$adj_fdr), title = "binomial test",
+              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = mylim) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+plot_grid(p1, p2, p3, p4, p5, p6, p7, p8, ncol = 2, nrow = 4, rel_heights = c(1,1,1,1))
+ggsave(path = PATH_FIG, "RSN16.png")
+```
+
+## Make DGM symmatric to compare with partial correlation
+```{r fig.height=14, fig.width=8, message=FALSE}
+lim_dgm = c(0, 1)
+lim_par = c(0,1)
+
+pos = 0.5:15.5
+s = 0.2
+
+# run 1
+x = pmax(stats.r1$adj,t(stats.r1$adj)); x[!up] = NA
+p1 = gplotMat(x, title = "DGM", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = lim_dgm) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p2 = gplotMat(pc.r1$a, title = "partial correlation", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = lim_par) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+# run 2
+x = pmax(stats.r2$adj,t(stats.r2$adj)); x[!up] = NA
+p3 = gplotMat(x, title = "DGM", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = lim_dgm) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p4 = gplotMat(pc.r2$a, title = "partial correlation", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = lim_par) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+# run 3
+x = pmax(stats.r3$adj,t(stats.r3$adj)); x[!up] = NA
+p5 = gplotMat(x, title = "DGM", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = lim_dgm) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p6 = gplotMat(pc.r3$a, title = "partial correlation", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = lim_par) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+# run 4
+x = pmax(stats.r4$adj,t(stats.r4$adj)); x[!up] = NA
+p7 = gplotMat(x, title = "DGM", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = lim_dgm) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+p8 = gplotMat(pc.r4$a, title = "partial correlation", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = lim_par) +
+  scale_x_continuous(breaks = pos, labels = labels$Label) +
+  theme(plot.margin = unit(c(s, 0, 0, 0), "cm"))
+
+plot_grid(p1, p2, p3, p4, p5, p6, p7, p8, ncol = 2, nrow = 4)
+ggsave(path = PATH_FIG, "RSN16_dgmVsPar.png")
+```
+
+```{r}
+cor(pmax(stats.r1$adj,t(stats.r1$adj))[up], pc.r1$a[up])
+cor(pmax(stats.r2$adj,t(stats.r1$adj))[up], pc.r2$a[up])
+cor(pmax(stats.r3$adj,t(stats.r1$adj))[up], pc.r3$a[up])
+cor(pmax(stats.r4$adj,t(stats.r1$adj))[up], pc.r4$a[up])
+```
+
+## Networks consistency across runs
+```{r}
+# edge reproduced in 3 runs or more
+m3 = dgm.net16.r1$am + dgm.net16.r2$am + dgm.net16.r3$am + dgm.net16.r4$am > 2
+# edge reproduced in all runs
+m4 = dgm.net16.r1$am * dgm.net16.r2$am * dgm.net16.r3$am * dgm.net16.r4$am
+# consistently no edge in all runs
+mn = (1-dgm.net16.r1$am) * (1-dgm.net16.r2$am) * (1-dgm.net16.r3$am) * (1-dgm.net16.r4$am)
+
+stats.m3 = binom.nettest(m3, alter = "greater")
+stats.m4 = binom.nettest(m4, alter = "greater")
+stats.mn = binom.nettest(mn, alter = "greater")
+```
+
+## Figure DGM within-subject consistency
+```{r fig.height=10, fig.width=8, message=FALSE}
+p1 = gplotMat(stats.m3$adj, title = "edge in 3/4 runs", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = c(0, 0.6)) +
+  scale_x_continuous(breaks = pos, labels = labels$Label)
+
+p2 = gplotMat(rmna(stats.m3$adj_fdr), title = "binomial test",
+              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = c(0, 0.6)) +
+  scale_x_continuous(breaks = pos, labels = labels$Label)
+
+p3 = gplotMat(stats.m4$adj, title = "edge in 4/4 runs", nodeLabels=labels$Label,
+              axisTextSize=9, xAngle=90, lim = c(0, 0.32)) +
+  scale_x_continuous(breaks = pos, labels = labels$Label)
+
+p4 = gplotMat(rmna(stats.m4$adj_fdr), title = "binomial test",
+              nodeLabels=labels$Label, axisTextSize=9, xAngle=90, lim = c(0,0.32)) +
+  scale_x_continuous(breaks = pos, labels = labels$Label)
+
+p5 = gplotMat(rmdiag(stats.mn$adj), title = "no edge in 4/4 runs", nodeLabels=labels$Label,
+              gradient = c("white", "violet", "blue"),
+              axisTextSize=9, xAngle=90) +
+  scale_x_continuous(breaks = pos, labels = labels$Label)
+
+p6 = gplotMat(rmdiag(rmna(stats.mn$adj_fdr)), title = "binomial test",
+              gradient = c("white", "violet", "blue"),
+              nodeLabels=labels$Label, axisTextSize=9, xAngle=90) +
+  scale_x_continuous(breaks = pos, labels = labels$Label)
+
+plot_grid(p1, p2, p3, p4, p5, p6, labels=c("A", "", "", "", "B", ""),
+          ncol = 2, nrow = 3, rel_heights = c(1,1,1))
+
+ggsave(path = PATH_FIG, "RSN16_within.png")
+```
+
+
+# Display components in FSLeyes
+```{bash}
+#~/opt/FSLeyes/fsleyes /usr/share/fsl/5.0/data/standard/MNI152_T1_2mm.nii.gz \
+#    ~/Drive/HCP900_Parcellation_Timeseries_Netmats_ICAd25/groupICA_3T_HCP820_MSMAll_d25.ica/melodic_IC_sum.nii.gz
+```
+
+
+
+
